@@ -17,7 +17,7 @@
     chrome_dst: C:\Temp\chrome_installer.exe
   tasks:
     - name: Check if Google Chrome is already installed
-      win_command: 'Get-ItemProperty -Path "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome" -ErrorAction SilentlyContinue'
+      win_command: 'wmic datafile where "Name='C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'" get Version /value'
       register: chrome_installed
 
     - name: Print installed Google Chrome version
