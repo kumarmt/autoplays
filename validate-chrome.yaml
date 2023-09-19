@@ -15,27 +15,23 @@
     chrome_dst: C:\Temp\chrome_installer.exe
   tasks:
     - name: Check if Google Chrome is already installed
-      win_shell: reg query "HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon" /v version
+      win_shell: |
+        $chromeVersion = (wmic datafile where 'name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"' get version /value).Split("=")[1].Trim()
+        Write-Output $chromeVersion
+      ignore_errors: true
       register: chrome_installed
-
-    - name: Extract Chrome Version
-      set_fact:
-        chrome_version: "{{ chrome_installed.stdout_lines | regex_search('version +REG_SZ +(.*)', '\\1', ignorecase=true) | first }}"
-      when: chrome_installed.rc == 0
 
     - name: Print installed Google Chrome version
       debug:
-        msg: "Google Chrome is already installed with version {{ chrome_version }} on {{ inventory_hostname }}"
+        msg: "Google Chrome is already installed with version {{ chrome_installed.stdout }} on {{ inventory_hostname }}"
       when:
         - chrome_installed.rc == 0
-        - chrome_version is defined
 
     - name: Print hosts if not installed Google Chrome
       debug:
         msg: "Google Chrome is not installed on {{ inventory_hostname }}"
       when:
         - chrome_installed.rc != 0
-        - chrome_version is not defined
 
     - name: Check chrome exe is exists
       stat:
