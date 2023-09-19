@@ -17,7 +17,7 @@
     chrome_dst: C:\Temp\chrome_installer.exe
   tasks:
     - name: Check if Google Chrome is already installed
-      win_command: 'wmic datafile where "Name='C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'" get Version /value'
+      win_command: 'wmic datafile where "Name='\\{{ inventory_hostname }}C:\Program Files\Google\Chrome\Application\chrome.exe'" get Version /value'
       register: chrome_installed
 
     - name: Print installed Google Chrome version
