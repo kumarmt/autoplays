@@ -16,10 +16,12 @@
   tasks:
     - name: Check if Google Chrome is already installed
       win_shell: |
-        $chromeVersion = (wmic datafile where 'name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"' get version /value).Split("=")[1].Trim()
-        Write-Output $chromeVersion
+        $chromeVersion = wmic datafile where 'name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"' get version /value
+        Write-Output ($chromeVersion | Format-List | Out-String).Trim().Split("=")[1]
       ignore_errors: true
       register: chrome_installed
+
+    
 
     - name: Print installed Google Chrome version
       debug:
