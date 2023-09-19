@@ -1,60 +1,70 @@
 ---
-# Playbook to validate the chrome installation
-# Here we are checking the chrome installtion below path
-# HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome
-# If systems are customized we mention the path based on system
-# To install chrome we are downloading exe file from below path
-# http://dl.google.com/chrome/install/375.126/chrome_installer.exe
-# If we want to get the latest version please find and replace the latest url by using a variable chrome_url
+# Playbook to validate the Chrome installation
+# Here we are checking the Chrome installation and printing the version
+# If Chrome is not installed we are installing Chrome by copying the Chrome exe
+# from ansible control machine to inventory machines and installing
+# If chrome exe is not available in the /tmp directory playbook will fail
 # We can replace the destination path by using a variable chrome_dst
-# Playbook will fail if not able to download the exe file with error message
+# Playbook will fail if not able to download the exe file with an error message
 
 - name: Verify Google Chrome installation
   hosts: all
   gather_facts: true
   vars:
-    chrome_url: http://dl.google.com/chrome/install/375.126/chrome_installer.exe
+    chrome_src: /tmp/chrome_installer.exe
     chrome_dst: C:\Temp\chrome_installer.exe
   tasks:
     - name: Check if Google Chrome is already installed
-      win_command: 'wmic datafile where "Name='\\{{ inventory_hostname }}C:\Program Files\Google\Chrome\Application\chrome.exe'" get Version /value'
+      win_shell: reg query "HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon" /v version
       register: chrome_installed
+
+    - name: Extract Chrome Version
+      set_fact:
+        chrome_version: "{{ chrome_installed.stdout_lines | regex_search('version +REG_SZ +(.*)', '\\1', ignorecase=true) | first }}"
+      when: chrome_installed.rc == 0
 
     - name: Print installed Google Chrome version
       debug:
-        msg: "Google Chrome is already installed with version {{ chrome_installed.stdout.Version }} on {{ inventory_hostname }}"
-      when: chrome_installed.rc == 0
+        msg: "Google Chrome is already installed with version {{ chrome_version }} on {{ inventory_hostname }}"
+      when:
+        - chrome_installed.rc == 0
+        - chrome_version is defined
 
     - name: Print hosts if not installed Google Chrome
       debug:
         msg: "Google Chrome is not installed on {{ inventory_hostname }}"
-      when: chrome_installed.rc == 0
-      
-    - name: Download Google Chrome exe
-      win_get_url:
-        url: "{{ chrome_url }}"  # Replace with needed version url and Make sure host have access to the internet
-        dest: "{{ chrome_dst }}"
-      register: download_result
-      ignore_errors: true
-      when: chrome_installed.rc != 0
-      
-    - name: Print and fail the execution if not able to download
-      fail:
-        msg: "Not able to download Please download manually and copy to the host"
       when:
         - chrome_installed.rc != 0
-        - downlaod_result.rc != 0
+        - chrome_version is not defined
 
+    - name: Check chrome exe is exists
+      stat:
+        path: "{{ chrome_src }}"
+      register: chrome_exists
+      delegate_to: localhost
+
+    - name: Print chrome if not exists
+      fail:
+        debug: "Chrome exe is not available to copy"
+      when: not chrome_exists.stat.exists
+
+    - name: copy Google Chrome exe
+      win_copy:
+        src: "{{ chrome_src}}"
+        dest: "{{ chrome_dst }}"
+      register: cp_result
+      when:
+        - chrome_installed.rc != 0
+        - chrome_exists.stat.exists
+      
     - name: Install Google Chrome
       win_command: 'C:\Temp\chrome_installer.exe /silent /install'
       register: install_status
       when:
         - chrome_installed.rc != 0
-        - downlaod_result.rc == 0
         
     - name: Print hosts if downloaded and installed Google Chrome
       debug:
         msg: "Google Chrome downloaded and installed on {{ inventory_hostname }}"
       when:
         - chrome_installed.rc != 0
-        - download_result.rc == 0
